@@ -25,7 +25,7 @@ class CarInterface(CarInterfaceBase):
 
     if candidate == CAR.SUBARU_FORESTER_2022:
       # Gen 1 LKAS angle not tested, can undashcam if not release once we see a test route
-      ret.dashcamOnly = True
+      ret.dashcamOnly = False
 
     ret.autoResumeSng = False
 
