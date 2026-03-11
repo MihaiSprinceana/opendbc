@@ -81,22 +81,18 @@ class CarController(CarControllerBase):
         can_sends.append(self.handle_torque_lateral(CC, CS))
 
     # *** longitudinal ***
-    use_angle_throttle_long = self.CP.openpilotLongitudinalControl and bool(self.CP.flags & SubaruFlags.LKAS_ANGLE)
 
     if CC.longActive:
       apply_throttle = int(round(np.interp(actuators.accel, CarControllerParams.THROTTLE_LOOKUP_BP, CarControllerParams.THROTTLE_LOOKUP_V)))
-      apply_throttle_cruise = int(round(np.interp(actuators.accel, CarControllerParams.THROTTLE_CRUISE_LOOKUP_BP, CarControllerParams.THROTTLE_CRUISE_LOOKUP_V)))
       apply_rpm = int(round(np.interp(actuators.accel, CarControllerParams.RPM_LOOKUP_BP, CarControllerParams.RPM_LOOKUP_V)))
       apply_brake = int(round(np.interp(actuators.accel, CarControllerParams.BRAKE_LOOKUP_BP, CarControllerParams.BRAKE_LOOKUP_V)))
 
       # limit min and max values
       cruise_throttle = np.clip(apply_throttle, CarControllerParams.THROTTLE_MIN, CarControllerParams.THROTTLE_MAX)
-      cruise_throttle_cmd = np.clip(apply_throttle_cruise, CarControllerParams.THROTTLE_CRUISE_MIN, CarControllerParams.THROTTLE_CRUISE_MAX)
       cruise_rpm = np.clip(apply_rpm, CarControllerParams.RPM_MIN, CarControllerParams.RPM_MAX)
       cruise_brake = np.clip(apply_brake, CarControllerParams.BRAKE_MIN, CarControllerParams.BRAKE_MAX)
     else:
       cruise_throttle = CarControllerParams.THROTTLE_INACTIVE
-      cruise_throttle_cmd = CarControllerParams.THROTTLE_CRUISE_INACTIVE
       cruise_rpm = CarControllerParams.RPM_MIN
       cruise_brake = CarControllerParams.BRAKE_MIN
 
@@ -123,8 +119,7 @@ class CarController(CarControllerBase):
     else:
       if self.frame % 10 == 0:
         can_sends.append(subarucan.create_es_dashstatus(self.packer, self.frame // 10, CS.es_dashstatus_msg, CC.enabled,
-                                                        self.CP.openpilotLongitudinalControl and not use_angle_throttle_long,
-                                                        CC.longActive, hud_control.leadVisible))
+                                                        self.CP.openpilotLongitudinalControl, CC.longActive, hud_control.leadVisible))
 
         can_sends.append(subarucan.create_es_lkas_state(self.packer, self.frame // 10, CS.es_lkas_state_msg, CC.enabled, hud_control.visualAlert,
                                                         hud_control.leftLaneVisible, hud_control.rightLaneVisible,
@@ -134,9 +129,7 @@ class CarController(CarControllerBase):
           can_sends.append(subarucan.create_es_infotainment(self.packer, self.frame // 10, CS.es_infotainment_msg, hud_control.visualAlert))
 
       if self.CP.openpilotLongitudinalControl:
-        if use_angle_throttle_long:
-          can_sends.append(subarucan.create_throttle(self.packer, CS.throttle_msg["COUNTER"] + 1, CS.throttle_msg, cruise_throttle_cmd))
-        elif self.frame % 5 == 0:
+        if self.frame % 5 == 0:
           can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, CS.es_status_msg,
                                                       self.CP.openpilotLongitudinalControl, CC.longActive, cruise_rpm))
 

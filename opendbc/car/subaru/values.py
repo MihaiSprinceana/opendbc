@@ -53,12 +53,6 @@ class CarControllerParams:
   THROTTLE_LOOKUP_BP = [0, 2]
   THROTTLE_LOOKUP_V = [THROTTLE_INACTIVE, THROTTLE_MAX]
 
-  THROTTLE_CRUISE_MIN = 0
-  THROTTLE_CRUISE_MAX = 90
-  THROTTLE_CRUISE_INACTIVE = 0
-  THROTTLE_CRUISE_LOOKUP_BP = [0, 2]
-  THROTTLE_CRUISE_LOOKUP_V = [THROTTLE_CRUISE_INACTIVE, THROTTLE_CRUISE_MAX]
-
   RPM_LOOKUP_BP = [0, 2]
   RPM_LOOKUP_V = [RPM_INACTIVE, RPM_MAX]
 
@@ -115,7 +109,7 @@ class SubaruCarDocs(CarDocs):
   footnotes: list[Enum] = field(default_factory=lambda: [Footnote.GLOBAL])
 
   def init_make(self, CP: CarParams):
-    if CP.alphaLongitudinalAvailable and not (CP.flags & SubaruFlags.LKAS_ANGLE):
+    if CP.alphaLongitudinalAvailable:
       self.footnotes.append(Footnote.EXP_LONG)
 
 

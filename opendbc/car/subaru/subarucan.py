@@ -26,23 +26,6 @@ def create_steering_status(packer):
   return packer.make_can_msg("ES_LKAS_State", 0, {})
 
 
-def create_throttle(packer, frame, throttle_msg, throttle_cruise):
-  values = {s: throttle_msg[s] for s in [
-    "CHECKSUM",
-    "Signal1",
-    "Engine_RPM",
-    "Neutral",
-    "Throttle_Pedal",
-    "Throttle_Cruise",
-    "Throttle_Combo",
-    "Signal3",
-    "Off_Accel",
-  ]}
-  values["COUNTER"] = frame % 0x10
-  values["Throttle_Cruise"] = throttle_cruise
-  return packer.make_can_msg("Throttle", CanBus.main, values)
-
-
 def create_es_distance(packer, frame, es_distance_msg, bus, pcm_cancel_cmd, long_enabled = False, brake_cmd = False, cruise_throttle = 0):
   values = {s: es_distance_msg[s] for s in [
     "CHECKSUM",
