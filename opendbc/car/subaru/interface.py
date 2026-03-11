@@ -96,11 +96,16 @@ class CarInterface(CarInterfaceBase):
     else:
       raise ValueError(f"unknown car: {candidate}")
 
-    ret.alphaLongitudinalAvailable = not (ret.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.PREGLOBAL |
-                                                       SubaruFlags.LKAS_ANGLE | SubaruFlags.HYBRID))
+    # Allow experimental long on GEN2 angle-LKAS cars through a dedicated throttle path.
+    ret.alphaLongitudinalAvailable = not (ret.flags & (SubaruFlags.PREGLOBAL | SubaruFlags.HYBRID))
+    if ret.flags & SubaruFlags.GLOBAL_GEN2 and not (ret.flags & SubaruFlags.LKAS_ANGLE):
+      ret.alphaLongitudinalAvailable = False
+    if ret.flags & SubaruFlags.LKAS_ANGLE and not (ret.flags & SubaruFlags.GLOBAL_GEN2):
+      ret.alphaLongitudinalAvailable = False
     ret.openpilotLongitudinalControl = alpha_long and ret.alphaLongitudinalAvailable
 
-    if ret.flags & SubaruFlags.GLOBAL_GEN2 and ret.openpilotLongitudinalControl:
+    # GEN2 torque-LKAS long still disables EyeSight. GEN2 angle-LKAS long keeps EyeSight active.
+    if ret.flags & SubaruFlags.GLOBAL_GEN2 and not (ret.flags & SubaruFlags.LKAS_ANGLE) and ret.openpilotLongitudinalControl:
       ret.flags |= SubaruFlags.DISABLE_EYESIGHT.value
 
     if ret.openpilotLongitudinalControl:

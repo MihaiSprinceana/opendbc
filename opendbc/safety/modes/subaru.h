@@ -181,6 +181,15 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
     .min_transmission_rpm = 0,
     .max_transmission_rpm = 3600,
   };
+  const LongitudinalLimits SUBARU_ANGLE_THROTTLE_LONG_LIMITS = {
+    .min_gas = 0,
+    .max_gas = 90,
+    .inactive_gas = 0,
+
+    .max_brake = 0,
+    .min_transmission_rpm = 0,
+    .max_transmission_rpm = 0,
+  };
 
   bool tx = true;
   bool violation = false;
@@ -225,6 +234,12 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
       violation |= (cruise_throttle != SUBARU_LONG_LIMITS.inactive_gas);
       violation |= (!cruise_cancel);
     }
+  }
+
+  // check throttle cruise_throttle limits for angle-LKAS longitudinal
+  if (subaru_lkas_angle && subaru_longitudinal && (msg->addr == MSG_SUBARU_Throttle)) {
+    int cruise_throttle = msg->data[5];
+    violation |= longitudinal_gas_checks(cruise_throttle, SUBARU_ANGLE_THROTTLE_LONG_LIMITS);
   }
 
   // check es_status transmission_rpm limits
@@ -279,8 +294,7 @@ static safety_config subaru_init(uint16_t param) {
   static const CanMsg SUBARU_LKAS_ANGLE_LONG_TX_MSGS[] = {
     SUBARU_BASE_TX_MSGS(SUBARU_ALT_BUS, MSG_SUBARU_ES_LKAS_ANGLE) // lat
     SUBARU_COMMON_TX_MSGS(SUBARU_ALT_BUS)
-    SUBARU_COMMON_LONG_TX_MSGS(SUBARU_ALT_BUS) // long
-    SUBARU_GEN2_LONG_ADDITIONAL_TX_MSGS()
+    {MSG_SUBARU_Throttle,       SUBARU_MAIN_BUS, 8, .check_relay = true}, // long
   };
 
   static RxCheck subaru_rx_checks[] = {

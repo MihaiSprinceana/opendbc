@@ -237,6 +237,30 @@ class TestSubaruGen2AngleStockLongitudinalSafety(TestSubaruStockLongitudinalSafe
   FLAGS = SubaruSafetyFlags.GEN2 | SubaruSafetyFlags.LKAS_ANGLE
 
 
+class TestSubaruGen2AngleLongitudinalSafety(TestSubaruGen2AngleStockLongitudinalSafety):
+  FLAGS = SubaruSafetyFlags.GEN2 | SubaruSafetyFlags.LKAS_ANGLE | SubaruSafetyFlags.LONG
+  TX_MSGS = lkas_tx_msgs(SUBARU_ALT_BUS, SubaruMsg.ES_LKAS_ANGLE) + [[SubaruMsg.Throttle, SUBARU_MAIN_BUS]]
+  RELAY_MALFUNCTION_ADDRS = {SUBARU_MAIN_BUS: (SubaruMsg.ES_LKAS_ANGLE, SubaruMsg.ES_DashStatus,
+                                               SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment, SubaruMsg.Throttle)}
+  FWD_BLACKLISTED_ADDRS = {SUBARU_CAM_BUS: [SubaruMsg.ES_LKAS_ANGLE, SubaruMsg.ES_DashStatus,
+                                            SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment, SubaruMsg.Throttle]}
+
+  MIN_GAS = 0
+  MAX_GAS = 90
+  INACTIVE_GAS = 0
+  MAX_POSSIBLE_GAS = 2**8
+
+  def _send_gas_msg(self, gas):
+    values = {"Throttle_Cruise": gas}
+    return self.packer.make_can_msg_safety("Throttle", SUBARU_MAIN_BUS, values)
+
+  def test_gas_safety_check(self):
+    self._generic_limit_safety_check(self._send_gas_msg, self.MIN_GAS, self.MAX_GAS, 0, self.MAX_POSSIBLE_GAS, 1, self.INACTIVE_GAS)
+
+  def test_cancel_message(self):
+    raise unittest.SkipTest("Angle longitudinal path uses Throttle message for gas actuation")
+
+
 class TestSubaruGen2LongitudinalSafety(TestSubaruLongitudinalSafetyBase, TestSubaruGen2TorqueSafetyBase):
   FLAGS = SubaruSafetyFlags.LONG | SubaruSafetyFlags.GEN2
   TX_MSGS = lkas_tx_msgs(SUBARU_ALT_BUS) + long_tx_msgs(SUBARU_ALT_BUS) + gen2_long_additional_tx_msgs()
