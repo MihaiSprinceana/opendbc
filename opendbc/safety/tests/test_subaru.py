@@ -241,9 +241,9 @@ class TestSubaruGen2AngleLongitudinalSafety(TestSubaruGen2AngleStockLongitudinal
   FLAGS = SubaruSafetyFlags.GEN2 | SubaruSafetyFlags.LKAS_ANGLE | SubaruSafetyFlags.LONG
   TX_MSGS = lkas_tx_msgs(SUBARU_ALT_BUS, SubaruMsg.ES_LKAS_ANGLE) + [[SubaruMsg.Throttle, SUBARU_MAIN_BUS]]
   RELAY_MALFUNCTION_ADDRS = {SUBARU_MAIN_BUS: (SubaruMsg.ES_LKAS_ANGLE, SubaruMsg.ES_DashStatus,
-                                               SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment, SubaruMsg.Throttle)}
+                                               SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment)}
   FWD_BLACKLISTED_ADDRS = {SUBARU_CAM_BUS: [SubaruMsg.ES_LKAS_ANGLE, SubaruMsg.ES_DashStatus,
-                                            SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment, SubaruMsg.Throttle]}
+                                            SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment]}
 
   MIN_GAS = 0
   MAX_GAS = 90

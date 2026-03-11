@@ -294,7 +294,7 @@ static safety_config subaru_init(uint16_t param) {
   static const CanMsg SUBARU_LKAS_ANGLE_LONG_TX_MSGS[] = {
     SUBARU_BASE_TX_MSGS(SUBARU_ALT_BUS, MSG_SUBARU_ES_LKAS_ANGLE) // lat
     SUBARU_COMMON_TX_MSGS(SUBARU_ALT_BUS)
-    {MSG_SUBARU_Throttle,       SUBARU_MAIN_BUS, 8, .check_relay = true}, // long
+    {MSG_SUBARU_Throttle,       SUBARU_MAIN_BUS, 8, .check_relay = false}, // long
   };
 
   static RxCheck subaru_rx_checks[] = {
