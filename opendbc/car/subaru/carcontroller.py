@@ -1,10 +1,16 @@
 import numpy as np
 from opendbc.can import CANPacker
 from opendbc.car import Bus, make_tester_present_msg
-from opendbc.car.lateral import apply_driver_steer_torque_limits, common_fault_avoidance, apply_std_steer_angle_limits
+from opendbc.car.lateral import (
+  apply_driver_steer_torque_limits,
+  apply_steer_angle_limits_vm,
+  common_fault_avoidance,
+  get_max_angle_delta_vm,
+)
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
+from opendbc.car.vehicle_model import VehicleModel
 
 # FIXME: These limits aren't exact. The real limit is more than likely over a larger time period and
 # involves the total steering angle change rather than rate, but these limits work well for now
@@ -24,28 +30,36 @@ class CarController(CarControllerBase):
 
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
+    self.VM = VehicleModel(CP)
 
   def handle_angle_lateral(self, CC, CS):
-    # Re-anchor the first active command to the live steering angle so the
-    # controller and panda safety start from the same reference.
-    if CC.latActive and not self.lat_active_prev:
-      self.apply_angle_last = CS.out.steeringAngleDeg
+    if not CC.latActive:
+      apply_steer = CS.out.steeringAngleDeg
+      steer_req = False
+    else:
+      max_angle_delta = get_max_angle_delta_vm(CS.out.vEgoRaw, self.VM, self.p)
+      steering_gap = abs(CS.out.steeringAngleDeg - self.apply_angle_last)
 
-    apply_steer = apply_std_steer_angle_limits(
+      if steering_gap > max_angle_delta:
+        # Hold the request low until the live wheel angle is within one legal
+        # step of the previously transmitted command.
+        apply_steer = CS.out.steeringAngleDeg
+        steer_req = False
+      else:
+        apply_steer = apply_steer_angle_limits_vm(
           CC.actuators.steeringAngleDeg,
           self.apply_angle_last,
           CS.out.vEgoRaw,
           CS.out.steeringAngleDeg,
-          CC.latActive,
-          self.p.ANGLE_LIMITS
+          True,
+          self.p,
+          self.VM,
         )
-
-    if not CC.latActive:
-      apply_steer = CS.out.steeringAngleDeg
+        steer_req = True
 
     self.apply_angle_last = apply_steer
     self.lat_active_prev = CC.latActive
-    return subarucan.create_steering_control_angle(self.packer, apply_steer, CC.latActive)
+    return subarucan.create_steering_control_angle(self.packer, apply_steer, steer_req)
 
   def handle_torque_lateral(self, CC, CS):
     apply_torque = int(round(CC.actuators.torque * self.p.STEER_MAX))

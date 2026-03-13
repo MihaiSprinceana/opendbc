@@ -162,14 +162,14 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
   const AngleSteeringLimits SUBARU_ANGLE_STEERING_LIMITS = {
     .max_angle = 545*100,
     .angle_deg_to_can = 100.,
-    .angle_rate_up_lookup = {
-      {0.0, 5.0, 35.0},
-      {5.0, 0.8, 0.15}
-    },
-    .angle_rate_down_lookup = {
-      {0.0, 5.0, 35.0},
-      {5.0, 0.8, 0.15}
-    },
+    .frequency = 50U,
+    .max_lateral_accel = 3.5886,
+    .max_lateral_jerk = 6.0,
+  };
+  const AngleSteeringParams SUBARU_CROSSTREK_2025_STEERING_PARAMS = {
+    .slip_factor = -0.00065058847,
+    .steer_ratio = 13.5,
+    .wheelbase = 2.5781,
   };
 
   const LongitudinalLimits SUBARU_LONG_LIMITS = {
@@ -202,7 +202,8 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
       desired_angle = -1 * to_signed(desired_angle, 17);
       bool lkas_request = GET_BIT(msg, 12U);
 
-      violation |= steer_angle_cmd_checks(desired_angle, lkas_request, SUBARU_ANGLE_STEERING_LIMITS);
+      violation |= steer_angle_cmd_checks_vm(desired_angle, lkas_request, SUBARU_ANGLE_STEERING_LIMITS,
+                                             SUBARU_CROSSTREK_2025_STEERING_PARAMS);
     }
   }
 

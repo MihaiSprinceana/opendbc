@@ -1,13 +1,15 @@
 from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 
-from opendbc.car import Bus, CarSpecs, DbcDict, PlatformConfig, Platforms, uds
-from opendbc.car.lateral import AngleSteeringLimits
+from opendbc.car import ACCELERATION_DUE_TO_GRAVITY, Bus, CarSpecs, DbcDict, PlatformConfig, Platforms, uds
+from opendbc.car.lateral import AngleSteeringLimits, ISO_LATERAL_ACCEL
 from opendbc.car.structs import CarParams
 from opendbc.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column
 from opendbc.car.fw_query_definitions import FwQueryConfig, Request, StdQueries, p16
 
 Ecu = CarParams.Ecu
+
+AVERAGE_ROAD_ROLL = 0.06  # ~3.4 degrees, 6% superelevation. higher actual roll lowers lateral acceleration
 
 
 class CarControllerParams:
@@ -23,6 +25,10 @@ class CarControllerParams:
       545,
       ([0., 5., 35.], [5., .8, .15,]),
       ([0., 5., 35.], [5., .8, .15,]),
+      # Mirror Tesla's ISO-plus-road-roll lateral accel bound for the VM limiter.
+      MAX_LATERAL_ACCEL=ISO_LATERAL_ACCEL + (ACCELERATION_DUE_TO_GRAVITY * AVERAGE_ROAD_ROLL),
+      MAX_LATERAL_JERK=6.0,
+      MAX_ANGLE_RATE=5.0,
     )
 
     if CP.flags & SubaruFlags.GLOBAL_GEN2:

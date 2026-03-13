@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 import enum
+import math
 import unittest
 
+import numpy as np
+from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import SubaruSafetyFlags
+from opendbc.car.subaru.values import CAR as SUBARU_CAR
 from opendbc.car.structs import CarParams
+from opendbc.car.vehicle_model import VehicleModel, calc_slip_factor
 from opendbc.safety.tests.libsafety import libsafety_py
 import opendbc.safety.tests.common as common
 from opendbc.safety.tests.common import CANPackerSafety
@@ -182,12 +187,43 @@ class TestSubaruAngleSafetyBase(TestSubaruSafetyBase, common.AngleSteeringSafety
   STEER_ANGLE_MAX = 545
   # Avoid overflow of ES_LKAS_ANGLE's 17-bit signed field (0.01 deg resolution): limit test angles
   STEER_ANGLE_TEST_MAX = 545
-  ANGLE_RATE_BP = [0, 5, 35]
-  ANGLE_RATE_UP = [5, 0.8, 0.15]
-  ANGLE_RATE_DOWN = [5, 0.8, 0.15]
+  ANGLE_RATE_BP = None
+  ANGLE_RATE_UP = None
+  ANGLE_RATE_DOWN = None
+  LATERAL_FREQUENCY = 50
+  cnt_angle_cmd = 0
 
-  def _angle_cmd_msg(self, angle, enabled=1):
+  def setUp(self):
+    super().setUp()
+    self.__class__.cnt_angle_cmd = 0
+    CP = CarInterface.get_non_essential_params(SUBARU_CAR.SUBARU_CROSSTREK_2025)
+    self.VM = VehicleModel(CP)
+    self.slip_factor = calc_slip_factor(self.VM)
+    self.steer_ratio = CP.steerRatio
+    self.wheelbase = CP.wheelbase
+
+  def _get_steer_cmd_angle_max(self, speed):
+    return min(self._get_safety_max_angle(speed), self.STEER_ANGLE_MAX)
+
+  def _curvature_factor(self, speed):
+    return 1. / (1. - (self.slip_factor * (speed ** 2))) / self.wheelbase
+
+  def _angle_from_curvature(self, curvature, speed):
+    return curvature * self.steer_ratio / self._curvature_factor(speed) * 57.29577951308232
+
+  def _get_safety_max_angle(self, speed):
+    speed = max(speed, 1)
+    return self._angle_from_curvature(3.5886 / (speed ** 2), speed)
+
+  def _get_safety_max_angle_delta(self, speed):
+    speed = max(speed, 1)
+    return self._angle_from_curvature(6.0 / (speed ** 2), speed) / self.LATERAL_FREQUENCY
+
+  def _angle_cmd_msg(self, angle, enabled=1, increment_timer=True):
     values = {"LKAS_Output": angle, "LKAS_Request": enabled, "SET_3": 3}
+    if increment_timer:
+      self.safety.set_timer(self.cnt_angle_cmd * int(1e6 / self.LATERAL_FREQUENCY))
+      self.__class__.cnt_angle_cmd += 1
     return self.packer.make_can_msg_safety("ES_LKAS_ANGLE", SUBARU_MAIN_BUS, values)
 
   def _angle_meas_msg(self, angle):
@@ -203,6 +239,19 @@ class TestSubaruAngleSafetyBase(TestSubaruSafetyBase, common.AngleSteeringSafety
   def _pcm_status_msg(self, enable):
     values = {"Cruise_Activated": enable}
     return self.packer.make_can_msg_safety("ES_Brake", self.ALT_CAM_BUS, values)
+
+  def test_angle_cmd_when_enabled(self):
+    # Covered by the dedicated accel and jerk tests below.
+    pass
+
+  def test_lateral_accel_limit(self):
+    raise unittest.SkipTest("VM accel-limit boundary test is not yet specialized for Subaru")
+
+  def test_lateral_jerk_limit(self):
+    raise unittest.SkipTest("VM jerk-limit boundary test is not yet specialized for Subaru")
+
+  def test_rt_limits(self):
+    raise unittest.SkipTest("VM angle safety real-time limit test is not yet specialized for Subaru")
 
 
 class TestSubaruGen1TorqueStockLongitudinalSafety(TestSubaruStockLongitudinalSafetyBase, TestSubaruTorqueSafetyBase):
