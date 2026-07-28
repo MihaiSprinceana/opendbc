@@ -84,9 +84,13 @@ class CarState(CarStateBase):
     cp_es_brake = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp_cam
 
     if self.CP.flags & SubaruFlags.LKAS_ANGLE:
-      # ES_Brake->Cruise_Activated stays high on brake at standstill,
-      # so we use ES_Status->Cruise_Activated which is the correct engaged state.
-      ret.cruiseState.enabled = cp_es_brake.vl["ES_Status"]['Cruise_Activated'] != 0
+      # ES_Status->Cruise_Activated is NOT populated on all angle-LKAS cars: on the MY2024
+      # Crosstrek ES_Status is a stub (Cruise_RPM and Cruise_Activated are always 0), so
+      # cruiseState.enabled could never go true. ES_Brake->Cruise_Activated tracks the real
+      # dash engage state (verified 99.1% against ES_DashStatus->Cruise_Activated_Dash).
+      # TODO: ES_Brake->Cruise_Activated was reported staying high when braking to a stop
+      #  while engaged on the MY2025 Crosstrek. Revisit if that reproduces here.
+      ret.cruiseState.enabled = cp_es_brake.vl["ES_Brake"]['Cruise_Activated'] != 0
       ret.cruiseState.available = cp_cam.vl["ES_DashStatus"]['Cruise_On'] != 0
     elif self.CP.flags & SubaruFlags.HYBRID:
       # ES_Status is missing on hybrid, so we use ES_Brake instead
