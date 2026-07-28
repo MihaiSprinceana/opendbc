@@ -61,6 +61,7 @@
   {.msg = {{MSG_SUBARU_Wheel_Speeds,    alt_bus,         8, 50U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},  \
   {.msg = {{MSG_SUBARU_Brake_Status,    alt_bus,         8, 50U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},  \
   {.msg = {{MSG_SUBARU_ES_Status,       alt_bus,         8, 20U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},  \
+  {.msg = {{MSG_SUBARU_ES_Brake,        alt_bus,         8, 20U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},  \
   {.msg = {{MSG_SUBARU_Steering_2,      SUBARU_MAIN_BUS, 8, 50U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},  \
 
 static bool subaru_gen2 = false;
@@ -101,8 +102,14 @@ static void subaru_rx_hook(const CANPacket_t *msg) {
   }
 
   // enter controls on rising edge of ACC, exit controls on ACC off
-  if (subaru_lkas_angle && (msg->addr == MSG_SUBARU_ES_Status) && (msg->bus == alt_main_bus)) {
-    bool cruise_engaged = (msg->data[3] >> 5) & 1U;
+  // ES_Status->Cruise_Activated is a stub on some angle-LKAS cars: on the MY2024 Crosstrek it
+  // is always 0, so controls_allowed never became true even while carState reported engaged.
+  // openpilot then commanded steering that safety blocked, starving the car of LKAS messages
+  // and latching a permanent EPS fault. ES_Brake->Cruise_Activated is the real engage state
+  // here (verified 99.1% against ES_DashStatus->Cruise_Activated_Dash), and is what
+  // opendbc master uses for angle cars.
+  if (subaru_lkas_angle && (msg->addr == MSG_SUBARU_ES_Brake) && (msg->bus == alt_main_bus)) {
+    bool cruise_engaged = (msg->data[4] >> 7) & 1U;
     pcm_cruise_check(cruise_engaged);
   }
   if (!subaru_lkas_angle && (msg->addr == MSG_SUBARU_CruiseControl) && (msg->bus == alt_main_bus)) {

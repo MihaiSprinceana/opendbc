@@ -175,8 +175,10 @@ class TestSubaruAngleSafetyBase(TestSubaruSafetyBase, common.AngleSteeringSafety
     return self.packer.make_can_msg_safety("Steering_2", SUBARU_MAIN_BUS, values)
 
   def _pcm_status_msg(self, enable):
+    # angle-LKAS safety takes the engage state from ES_Brake, not ES_Status: ES_Status is a
+    # stub on some of these cars (always 0 on the MY2024 Crosstrek)
     values = {"Cruise_Activated": enable}
-    return self.packer.make_can_msg_safety("ES_Status", self.ALT_MAIN_BUS, values)
+    return self.packer.make_can_msg_safety("ES_Brake", self.ALT_MAIN_BUS, values)
 
   def test_angle_cmd_when_enabled(self):
     # VM-based limits are tested below
