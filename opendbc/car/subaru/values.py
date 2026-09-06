@@ -77,9 +77,9 @@ class SubaruSafetyFlags(IntFlag):
   SETSPEED_EXP = 32
 
 
-# EXPERIMENT (throwaway): arm with `export SUBARU_SETSPEED_EXP=set` (decrease, safe default to try first)
-# or `=resume` (increase) in launch_env.sh. Unset = branch is inert, identical to crosstrek-2024.
-SETSPEED_EXP_MODE = {"set": "Cruise_Set", "resume": "Cruise_Resume"}.get(os.environ.get("SUBARU_SETSPEED_EXP", "").lower())
+# EXPERIMENT (throwaway): ARMED BY DEFAULT in "set" mode (simulated Set press = decrease set speed, the safe direction).
+# Override with `export SUBARU_SETSPEED_EXP=resume` (increase) or `=off` (inert) in launch_env.sh.
+SETSPEED_EXP_MODE = {"set": "Cruise_Set", "resume": "Cruise_Resume"}.get(os.environ.get("SUBARU_SETSPEED_EXP", "set").lower())
 
 
 class SubaruFlags(IntFlag):
