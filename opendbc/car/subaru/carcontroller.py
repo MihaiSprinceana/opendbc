@@ -4,7 +4,8 @@ from opendbc.car import Bus, make_tester_present_msg
 from opendbc.car.lateral import apply_center_deadzone, apply_driver_steer_torque_limits, apply_steer_angle_limits_vm, common_fault_avoidance
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
-from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
+from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, SETSPEED_EXP_MODE, CanBus, CarControllerParams, SubaruFlags
+from opendbc.car.subaru.setspeed_exp import SetSpeedExperiment
 from opendbc.car.vehicle_model import VehicleModel
 
 # FIXME: These limits aren't exact. The real limit is more than likely over a larger time period and
@@ -33,6 +34,11 @@ class CarController(CarControllerBase):
 
     if CP.flags & SubaruFlags.LKAS_ANGLE:
       self.VM = VehicleModel(get_safety_CP())
+
+    # EXPERIMENT (throwaway): see setspeed_exp.py. Only GEN2 angle-LKAS cars, only when armed via env var.
+    self.setspeed_exp = None
+    if SETSPEED_EXP_MODE and CP.flags & SubaruFlags.GLOBAL_GEN2 and CP.flags & SubaruFlags.LKAS_ANGLE and not CP.openpilotLongitudinalControl:
+      self.setspeed_exp = SetSpeedExperiment(SETSPEED_EXP_MODE)
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
@@ -141,6 +147,14 @@ class CarController(CarControllerBase):
           if not (self.CP.flags & SubaruFlags.HYBRID):
             bus = CanBus.alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else CanBus.main
             can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg["COUNTER"] + 1, CS.es_distance_msg, bus, pcm_cancel_cmd))
+        elif self.setspeed_exp is not None:
+          # EXPERIMENT (throwaway): simulate a cruise button press inside the camera's own ES_Distance frame
+          camera_buttons_active = any(CS.es_distance_msg[k] for k in ("Cruise_Cancel", "Cruise_Set", "Cruise_Resume"))
+          button = self.setspeed_exp.update(self.frame, CC.enabled, CS.out.cruiseState.enabled, pcm_cancel_cmd, CS.out.vEgo,
+                                            CS.out.brakePressed, CS.out.gasPressed, camera_buttons_active)
+          if button is not None:
+            can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg["COUNTER"] + 1, CS.es_distance_msg, CanBus.alt,
+                                                          False, button=button))
 
       if self.CP.flags & SubaruFlags.DISABLE_EYESIGHT:
         # Tester present (keeps eyesight disabled)

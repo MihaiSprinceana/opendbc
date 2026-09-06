@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 
@@ -71,6 +72,14 @@ class SubaruSafetyFlags(IntFlag):
   LONG = 2
   PREGLOBAL_REVERSED_DRIVER_TORQUE = 4
   LKAS_ANGLE = 8
+  # EXPERIMENT (throwaway): allow ES_Distance with Cruise_Set/Cruise_Resume, throttle passed through.
+  # Probes whether an injected button bit moves EyeSight's ACC set speed on GEN2. See exp-es-distance-setspeed.
+  SETSPEED_EXP = 32
+
+
+# EXPERIMENT (throwaway): arm with `export SUBARU_SETSPEED_EXP=set` (decrease, safe default to try first)
+# or `=resume` (increase) in launch_env.sh. Unset = branch is inert, identical to crosstrek-2024.
+SETSPEED_EXP_MODE = {"set": "Cruise_Set", "resume": "Cruise_Resume"}.get(os.environ.get("SUBARU_SETSPEED_EXP", "").lower())
 
 
 class SubaruFlags(IntFlag):

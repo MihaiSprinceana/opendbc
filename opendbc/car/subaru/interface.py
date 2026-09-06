@@ -3,7 +3,7 @@ from opendbc.car.disable_ecu import disable_ecu
 from opendbc.car.interfaces import CarInterfaceBase
 from opendbc.car.subaru.carcontroller import CarController
 from opendbc.car.subaru.carstate import CarState
-from opendbc.car.subaru.values import CAR, GLOBAL_ES_ADDR, SubaruFlags, SubaruSafetyFlags
+from opendbc.car.subaru.values import CAR, GLOBAL_ES_ADDR, SubaruFlags, SubaruSafetyFlags, SETSPEED_EXP_MODE
 
 
 class CarInterface(CarInterfaceBase):
@@ -38,6 +38,8 @@ class CarInterface(CarInterfaceBase):
         ret.safetyConfigs[0].safetyParam |= SubaruSafetyFlags.GEN2.value
       if ret.flags & SubaruFlags.LKAS_ANGLE:
         ret.safetyConfigs[0].safetyParam |= SubaruSafetyFlags.LKAS_ANGLE.value
+      if SETSPEED_EXP_MODE and ret.flags & SubaruFlags.GLOBAL_GEN2 and ret.flags & SubaruFlags.LKAS_ANGLE:
+        ret.safetyConfigs[0].safetyParam |= SubaruSafetyFlags.SETSPEED_EXP.value
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.1

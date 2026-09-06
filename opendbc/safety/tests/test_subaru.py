@@ -292,5 +292,72 @@ class TestSubaruGen2AngleStockLongitudinalSafety(TestSubaruStockLongitudinalSafe
   FWD_BLACKLISTED_ADDRS = fwd_blacklisted_addr(SubaruMsg.ES_LKAS_ANGLE)
 
 
+class TestSubaruGen2AngleSetSpeedExpSafety(TestSubaruGen2AngleStockLongitudinalSafety):
+  """EXPERIMENT (throwaway): ES_Distance may carry a Cruise_Set or Cruise_Resume button bit while
+  engaged, but only with the camera's own Cruise_Throttle passed through unchanged."""
+  FLAGS = SubaruSafetyFlags.GEN2 | SubaruSafetyFlags.LKAS_ANGLE | SubaruSafetyFlags.SETSPEED_EXP
+
+  rx_cnt = 0
+
+  def _es_distance_rx(self, throttle):
+    # drive the counter explicitly: the same packer also builds our TX frames, which would otherwise
+    # consume counter values and make the rx check see gaps (a test artifact, not a production path)
+    self.__class__.rx_cnt = (self.rx_cnt + 1) % 16
+    values = {"Cruise_Throttle": throttle, "COUNTER": self.rx_cnt}
+    return self.packer.make_can_msg_safety("ES_Distance", self.ALT_MAIN_BUS, values)
+
+  def _button_msg(self, button, throttle, cancel=0):
+    values = {button: 1, "Cruise_Throttle": throttle, "Cruise_Cancel": cancel, "COUNTER": 0}
+    return self.packer.make_can_msg_safety("ES_Distance", self.ALT_MAIN_BUS, values)
+
+  def test_setspeed_button_needs_controls_allowed(self):
+    for button in ("Cruise_Set", "Cruise_Resume"):
+      self._rx(self._es_distance_rx(7500))
+      self.safety.set_controls_allowed(False)
+      self.assertFalse(self._tx(self._button_msg(button, 7500)))
+      self.safety.set_controls_allowed(True)
+      self.assertTrue(self._tx(self._button_msg(button, 7500)))
+
+  def test_setspeed_button_throttle_must_match_camera(self):
+    self.safety.set_controls_allowed(True)
+    for button in ("Cruise_Set", "Cruise_Resume"):
+      self._rx(self._es_distance_rx(7500))
+      self.assertTrue(self._tx(self._button_msg(button, 7500)))
+      self.assertFalse(self._tx(self._button_msg(button, 7501)))
+      self.assertFalse(self._tx(self._button_msg(button, self.INACTIVE_GAS)))
+      # the last two camera values are accepted (camera runs at 20 Hz, we copy the last parsed frame)
+      self._rx(self._es_distance_rx(7400))
+      self.assertTrue(self._tx(self._button_msg(button, 7500)))
+      self.assertTrue(self._tx(self._button_msg(button, 7400)))
+      self._rx(self._es_distance_rx(7300))
+      self.assertFalse(self._tx(self._button_msg(button, 7500)))
+      self.assertTrue(self._tx(self._button_msg(button, 7300)))
+
+  def test_setspeed_buttons_are_exclusive(self):
+    self.safety.set_controls_allowed(True)
+    self._rx(self._es_distance_rx(7500))
+    both = {"Cruise_Set": 1, "Cruise_Resume": 1, "Cruise_Throttle": 7500, "COUNTER": 0}
+    self.assertFalse(self._tx(self.packer.make_can_msg_safety("ES_Distance", self.ALT_MAIN_BUS, both)))
+    # a button bit alongside cancel falls back to the cancel rule, which needs inactive throttle
+    self.assertFalse(self._tx(self._button_msg("Cruise_Set", 7500, cancel=1)))
+    self.assertTrue(self._tx(self._button_msg("Cruise_Set", self.INACTIVE_GAS, cancel=1)))
+
+  def test_setspeed_button_blocked_without_exp_flag(self):
+    raise unittest.SkipTest("flag is set on this class")
+
+
+class TestSubaruGen2AngleSetSpeedFlagOffSafety(TestSubaruGen2AngleStockLongitudinalSafety):
+  """Without SETSPEED_EXP the stock rule holds: ES_Distance is cancel-only."""
+
+  def test_setspeed_button_blocked_without_exp_flag(self):
+    for button in ("Cruise_Set", "Cruise_Resume"):
+      values = {"Cruise_Throttle": 7500}
+      self._rx(self.packer.make_can_msg_safety("ES_Distance", self.ALT_MAIN_BUS, values))
+      for controls_allowed in (False, True):
+        self.safety.set_controls_allowed(controls_allowed)
+        for throttle in (7500, self.INACTIVE_GAS):
+          msg = {button: 1, "Cruise_Throttle": throttle}
+          self.assertFalse(self._tx(self.packer.make_can_msg_safety("ES_Distance", self.ALT_MAIN_BUS, msg)))
+
 if __name__ == "__main__":
   unittest.main()
