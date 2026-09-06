@@ -4,14 +4,15 @@ EXPERIMENT (throwaway): does an injected ES_Distance Cruise_Set / Cruise_Resume 
 Decides WHEN to simulate a press. The safety side (opendbc/safety/modes/subaru.h, SETSPEED_EXP flag) independently
 enforces that such a frame only passes the camera's own throttle through and is only sent while engaged.
 
-Cadence mirrors a real press as measured on the 2024 Crosstrek: the camera echoes a physical press for 2-3 of its
-20 Hz frames (100-150 ms), so we hold the bit for press_frames control frames (100 Hz).
+Cadence: drive 1 (2026-09-06) held the bit for 150 ms, matching the 100-150 ms echo of a real press, and nothing
+reacted. The only injected Cruise_Cancel that was ever honoured without a pedal press needed ~0.8 s of sustained
+bit, so drive 2 holds for 1 s. The speed floor is 7 m/s so a 35 km/h cruise can still take the last step to 30.
 """
 
 
 class SetSpeedExperiment:
-  def __init__(self, button: str, period_frames: int = 1000, press_frames: int = 15, settle_frames: int = 500,
-               min_speed: float = 10.0, max_presses: int = 6):
+  def __init__(self, button: str, period_frames: int = 1000, press_frames: int = 100, settle_frames: int = 500,
+               min_speed: float = 7.0, max_presses: int = 6):
     assert button in ("Cruise_Set", "Cruise_Resume")
     self.button = button
     self.period_frames = period_frames

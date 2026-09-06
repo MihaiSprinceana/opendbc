@@ -56,3 +56,14 @@ class TestSetSpeedExperiment(unittest.TestCase):
     assert self.exp.update(SETTLE + 2, **{**OK, "enabled": False}) is None
     assert self.exp.update(SETTLE + 3, **{**OK, "cruise_enabled": False}) is None
     assert self.exp.update(SETTLE + 4, **{**OK, "cancel": True}) is None
+
+
+class TestSetSpeedExperimentDriveDefaults(unittest.TestCase):
+  def test_defaults_match_the_planned_drive(self):
+    # 45 -> 40 -> 35 -> 30 km/h in three presses: 1 s hold (the only honoured cancel needed ~0.8 s),
+    # 10 s apart, and the speed floor must sit below a 35 km/h cruise (9.7 m/s)
+    exp = SetSpeedExperiment("Cruise_Set")
+    assert exp.press_frames == 100
+    assert exp.period_frames == 1000
+    assert exp.min_speed == 7.0
+    assert exp.max_presses == 6
