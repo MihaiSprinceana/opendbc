@@ -169,7 +169,7 @@ class TestSubaruAngleSafetyBase(TestSubaruSafetyBase, common.AngleSteeringSafety
 
   def _pcm_status_msg(self, enable):
     values = {"Cruise_Activated": enable}
-    return self.packer.make_can_msg_safety("ES_Status", self.ALT_MAIN_BUS, values)
+    return self.packer.make_can_msg_safety("ES_Brake", self.ALT_MAIN_BUS, values)
 
   def test_rx_wrong_bus(self):
     for make_msg, get_value in ((self._angle_meas_msg, self.safety.get_angle_meas_max),
@@ -183,16 +183,18 @@ class TestSubaruAngleSafetyBase(TestSubaruSafetyBase, common.AngleSteeringSafety
             self._rx(msg)
             self.assertEqual(get_value(), 0)
 
-  def test_stale_es_brake_cannot_engage(self):
+  def test_es_status_cannot_engage(self):
+    # ES_Status->Cruise_Activated is a stub on the MY2024 Crosstrek; only ES_Brake may engage.
     self._rx(self._speed_msg(0))
+    self._rx(self.packer.make_can_msg_safety("ES_Status", self.ALT_MAIN_BUS, {"Cruise_Activated": 1}))
+    self.assertFalse(self.safety.get_controls_allowed())
     self._rx(self._pcm_status_msg(True))
     self.assertTrue(self.safety.get_controls_allowed())
     self._rx(self._user_brake_msg(True))
     self.assertFalse(self.safety.get_controls_allowed())
-    self._rx(self._pcm_status_msg(False))
     self._rx(self._user_brake_msg(False))
-    # ES_Brake may remain high after ACC cancels at a stop.
-    self._rx(self.packer.make_can_msg_safety("ES_Brake", self.ALT_MAIN_BUS, {"Cruise_Activated": 1}))
+    self._rx(self._pcm_status_msg(False))
+    self._rx(self.packer.make_can_msg_safety("ES_Status", self.ALT_MAIN_BUS, {"Cruise_Activated": 1}))
     self.assertFalse(self.safety.get_controls_allowed())
     self._rx(self._pcm_status_msg(True))
     self.assertTrue(self.safety.get_controls_allowed())
