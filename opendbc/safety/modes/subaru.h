@@ -93,7 +93,7 @@ static void subaru_rx_hook(const CANPacket_t *msg) {
   if (subaru_lkas_angle && msg_matches(msg, MSG_SUBARU_Steering_2, SUBARU_MAIN_BUS)) {
     int angle_meas_new = GET_BYTES_LE(msg, 3, 3) & 0x1FFFFU;
     angle_meas_new = -1 * to_signed(angle_meas_new, 17);
-    update_sample(&angle_meas, angle_meas_new);
+    update_sample(&safety.angle_meas, angle_meas_new);
   }
 
   // enter controls on rising edge of ACC, exit controls on ACC off
